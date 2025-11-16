@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working in this
 - Run application: `python main.py`
 - Run with Docker: `docker build -t component-inventory . && docker run -p 5000:5000 component-inventory`
 - Initialize database: `python -c "from main import db; db.create_all()"`
+- Deploy to K3s: `kubectl apply -k k8s/` (see K8S_DEPLOYMENT.md for details)
 - Run tests: `pytest`
 - Run single test: `pytest tests/test_file.py::test_function`
 - Lint code: `flake8 .`
@@ -23,3 +24,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working in this
 - Flask-based REST API for component inventory management
 - SQLAlchemy for database ORM
 - SQLite local database in instance/components.db
+- K3s deployment manifests in k8s/ directory
+
+## Deployment
+- See K8S_DEPLOYMENT.md for comprehensive K3s deployment instructions
+- Application is containerized and ready for Kubernetes deployment
+- Persistent storage configured for database persistence
+- Automated CI/CD via GitHub Actions builds and publishes to GHCR
+- Multi-platform container images (amd64, arm64)

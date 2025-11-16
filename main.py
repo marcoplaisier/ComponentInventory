@@ -1,8 +1,12 @@
+import os
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///components.db'
+# Use environment variable for database path, defaulting to instance folder
+db_path = os.environ.get('DATABASE_PATH', 'sqlite:///instance/components.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_path
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 class Component(db.Model):
@@ -74,4 +78,13 @@ def component_to_dict(component):
     }
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Create instance directory if it doesn't exist
+    os.makedirs('instance', exist_ok=True)
+
+    # Create tables if they don't exist
+    with app.app_context():
+        db.create_all()
+
+    # Run the application
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: component-inventory
+  namespace: component-inventory
+  labels:
+    app: component-inventory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: component-inventory
+  template:
+    metadata:
+      labels:
+        app: component-inventory
+    spec:
+      containers:
+      - name: component-inventory
+        image: ghcr.io/marcoplaisier/componentinventory:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: DATABASE_PATH
+          value: "sqlite:////data/components.db"
+        - name: FLASK_DEBUG
+          value: "false"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /components
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /components
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: component-inventory-pvc
