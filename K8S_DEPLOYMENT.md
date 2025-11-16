@@ -6,27 +6,31 @@ This guide explains how to deploy the Component Inventory application on K3s (li
 
 - K3s installed and running
 - kubectl configured to access your K3s cluster
-- Docker or containerd for building images
 
 ## Quick Start
 
-### 1. Build the Docker Image
+The application is automatically built and published to GitHub Container Registry (GHCR) via GitHub Actions on every push to the main branch.
 
-Build the application image and import it into K3s:
+### 1. Pull from GitHub Container Registry (Recommended)
+
+The deployment manifest is pre-configured to use images from GHCR:
 
 ```bash
-# Build the Docker image
-docker build -t component-inventory:latest .
+# For public repositories, the image will be pulled automatically
+# For private repositories, create an image pull secret:
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=<github-username> \
+  --docker-password=<github-token> \
+  --docker-email=<email> \
+  -n component-inventory
 
-# Save the image to a tar file
-docker save component-inventory:latest -o component-inventory.tar
-
-# Import into K3s (if using K3s with containerd)
-sudo k3s ctr images import component-inventory.tar
-
-# Or if using a local registry
-docker tag component-inventory:latest localhost:5000/component-inventory:latest
-docker push localhost:5000/component-inventory:latest
+# Then add imagePullSecrets to deployment.yaml:
+# spec:
+#   template:
+#     spec:
+#       imagePullSecrets:
+#       - name: ghcr-secret
 ```
 
 ### 2. Deploy to K3s
@@ -39,6 +43,27 @@ kubectl apply -f k8s/
 
 # Or using kustomize
 kubectl apply -k k8s/
+```
+
+## Alternative: Build Locally
+
+If you prefer to build the image locally instead of using GHCR:
+
+```bash
+# Build the Docker image
+docker build -t component-inventory:latest .
+
+# Option A: Import into K3s containerd
+docker save component-inventory:latest -o component-inventory.tar
+sudo k3s ctr images import component-inventory.tar
+
+# Option B: Use a local registry
+docker tag component-inventory:latest localhost:5000/component-inventory:latest
+docker push localhost:5000/component-inventory:latest
+
+# Update deployment.yaml to use local image:
+# image: component-inventory:latest  # or localhost:5000/component-inventory:latest
+# imagePullPolicy: IfNotPresent
 ```
 
 ### 3. Verify Deployment
@@ -84,6 +109,7 @@ The deployment consists of:
 - **Deployment**: Single replica (can be scaled) running the Flask application
 - **Service**: LoadBalancer service exposing the application on port 80
 - **PersistentVolumeClaim**: 1Gi volume for SQLite database persistence
+- **GitHub Actions**: Automated CI/CD pipeline for building and publishing container images
 
 ## Configuration
 
@@ -121,14 +147,35 @@ kubectl scale deployment component-inventory -n component-inventory --replicas=3
 
 ## Updating the Application
 
-To update the application:
+### Automated Updates (GHCR)
+
+When using GHCR, updates are automatic:
+
+```bash
+# 1. Push changes to main branch or create a version tag
+git tag v1.1.0
+git push origin v1.1.0
+
+# 2. GitHub Actions will build and push the new image automatically
+
+# 3. Restart the deployment to pull the new image
+kubectl rollout restart deployment/component-inventory -n component-inventory
+
+# 4. Monitor the rollout
+kubectl rollout status deployment/component-inventory -n component-inventory
+```
+
+### Manual Updates (Local Build)
+
+If building locally:
 
 ```bash
 # Build new image with a version tag
 docker build -t component-inventory:v1.1 .
 
 # Import into K3s
-sudo k3s ctr images import component-inventory-v1.1.tar
+docker save component-inventory:v1.1 -o component-inventory.tar
+sudo k3s ctr images import component-inventory.tar
 
 # Update the deployment
 kubectl set image deployment/component-inventory \
@@ -158,10 +205,16 @@ kubectl describe pvc component-inventory-pvc -n component-inventory
 
 ### Common Issues
 
-1. **Image Pull Issues**: Ensure the image is available in K3s's containerd
-   ```bash
-   sudo k3s crictl images | grep component-inventory
-   ```
+1. **Image Pull Issues**:
+   - For GHCR: Check if the repository is private and requires authentication
+     ```bash
+     kubectl describe pod <pod-name> -n component-inventory
+     kubectl get events -n component-inventory
+     ```
+   - For local images: Ensure the image is available in K3s's containerd
+     ```bash
+     sudo k3s crictl images | grep component-inventory
+     ```
 
 2. **Database Permissions**: Check that the pod has write access to the volume
    ```bash
@@ -171,6 +224,12 @@ kubectl describe pvc component-inventory-pvc -n component-inventory
 3. **Service Not Accessible**: Verify the LoadBalancer service has an external IP
    ```bash
    kubectl get svc -n component-inventory
+   ```
+
+4. **GHCR Authentication**: For private repositories, ensure image pull secret is configured
+   ```bash
+   kubectl get secrets -n component-inventory
+   kubectl describe secret ghcr-secret -n component-inventory
    ```
 
 ## Uninstalling

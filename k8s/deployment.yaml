@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: component-inventory
-        image: component-inventory:latest
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/marcoplaisier/componentinventory:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
           name: http

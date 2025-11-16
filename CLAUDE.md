@@ -30,3 +30,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working in this
 - See K8S_DEPLOYMENT.md for comprehensive K3s deployment instructions
 - Application is containerized and ready for Kubernetes deployment
 - Persistent storage configured for database persistence
+- Automated CI/CD via GitHub Actions builds and publishes to GHCR
+- Multi-platform container images (amd64, arm64)
